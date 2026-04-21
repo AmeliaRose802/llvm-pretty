@@ -48,6 +48,8 @@ pPrimType = choice
   , try (string "label")    >> return Label
   , try (string "void")     >> return Void
   , try (string "x86mmx")   >> return X86mmx
+  , try (string "x86_amx")  >> return X86amx
+  , try (string "token")    >> return Token
   , try (string "metadata") >> return Metadata
   ]
 

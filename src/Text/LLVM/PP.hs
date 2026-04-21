@@ -55,6 +55,7 @@ module Text.LLVM.PP
   , ppDefineSig
   , ppDefine
   , ppFunAttr
+  , ppParamAttr
   , ppLabelDef
   , ppLabel
   , PrettyLabel(ppLabel')
@@ -458,6 +459,8 @@ ppPrimType Void           = "void"
 ppPrimType (Integer i)    = char 'i' <> integer (toInteger i)
 ppPrimType (FloatType ft) = ppFloatType ft
 ppPrimType X86mmx         = "x86mmx"
+ppPrimType X86amx         = "x86_amx"
+ppPrimType Token          = "token"
 ppPrimType Metadata       = "metadata"
 
 ppFloatType :: Fmt FloatType
@@ -614,6 +617,12 @@ ppFunAttr a =
     SSPstrong       -> text "sspstrong"
     UWTable         -> text "uwtable"
 
+ppParamAttr :: Fmt ParamAttr
+ppParamAttr a =
+  case a of
+    DeadOnUnwind -> text "dead_on_unwind"
+    DeadOnReturn -> text "dead_on_return"
+
 -- Basic Blocks ----------------------------------------------------------------
 
 ppLabelDef :: Fmt BlockLabel
@@ -760,6 +769,7 @@ ppConvOp SiToFp   = "sitofp"
 ppConvOp PtrToInt = "ptrtoint"
 ppConvOp IntToPtr = "inttoptr"
 ppConvOp BitCast  = "bitcast"
+ppConvOp PtrToAddr = onlyOnLLVM 21 "PtrToAddr" "ptrtoaddr"
 
 ppAtomicOrdering :: Fmt AtomicOrdering
 ppAtomicOrdering Unordered = text "unordered"
@@ -785,6 +795,8 @@ ppAtomicOp AtomicFAdd = onlyOnLLVM 9 "AtomicFAdd" "fadd"
 ppAtomicOp AtomicFSub = onlyOnLLVM 9 "AtomicFSub" "fsub"
 ppAtomicOp AtomicFMax = onlyOnLLVM 15 "AtomicFMax" "fmax"
 ppAtomicOp AtomicFMin = onlyOnLLVM 15 "AtomicFMin" "fmin"
+ppAtomicOp AtomicFMaximum = onlyOnLLVM 21 "AtomicFMaximum" "fmaximum"
+ppAtomicOp AtomicFMinimum = onlyOnLLVM 21 "AtomicFMinimum" "fminimum"
 ppAtomicOp AtomicUIncWrap = onlyOnLLVM 16 "AtomicUIncWrap" "uinc_wrap"
 ppAtomicOp AtomicUDecWrap = onlyOnLLVM 16 "AtomicUDecWrap" "udec_wrap"
 

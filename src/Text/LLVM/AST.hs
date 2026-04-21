@@ -97,6 +97,7 @@ module Text.LLVM.AST
   , defFunType, addDefine
     -- * Function Attributes and attribute groups
   , FunAttr(..)
+  , ParamAttr(..)
     -- * Basic Block Labels
   , BlockLabel(..)
     -- * Basic Blocks
@@ -538,6 +539,10 @@ data PrimType
   | Integer Word32
   | FloatType FloatType
   | X86mmx
+  | X86amx
+  -- ^ Introduced in LLVM 12 (TYPE_CODE_X86_AMX).
+  | Token
+  -- ^ Introduced in LLVM 3.7 (TYPE_CODE_TOKEN).
   | Metadata
     deriving (Data, Eq, Generic, Ord, Show, Lift)
 
@@ -919,6 +924,15 @@ data FunAttr
    | UWTable
   deriving (Data, Eq, Generic, Ord, Show)
 
+-- | Parameter attributes (i.e., attributes that can apply to function
+-- parameters and, in some cases, call-site arguments).
+--
+-- We currently only model the small subset needed by SAW's LLVM pipeline.
+data ParamAttr
+  = DeadOnUnwind  -- ^ Introduced in LLVM 21
+  | DeadOnReturn  -- ^ Introduced in LLVM 22
+  deriving (Data, Eq, Generic, Ord, Show)
+
 -- Basic Block Labels ----------------------------------------------------------
 
 data BlockLabel
@@ -1182,6 +1196,8 @@ data ConvOp
   | PtrToInt
   | IntToPtr
   | BitCast
+  | PtrToAddr
+    -- ^ Pointer-to-address cast. Introduced in LLVM 21.
     deriving (Data, Eq, Generic, Ord, Show)
 
 data AtomicRWOp
@@ -1200,6 +1216,8 @@ data AtomicRWOp
   | AtomicFSub  -- ^ Introduced in LLVM 9
   | AtomicFMax  -- ^ Introduced in LLVM 15
   | AtomicFMin  -- ^ Introduced in LLVM 15
+  | AtomicFMaximum -- ^ Introduced in LLVM 21
+  | AtomicFMinimum -- ^ Introduced in LLVM 21
   | AtomicUIncWrap  -- ^ Introduced in LLVM 16
   | AtomicUDecWrap  -- ^ Introduced in LLVM 16
     deriving (Data, Eq, Enum, Generic, Ord, Show)
