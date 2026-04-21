@@ -538,6 +538,7 @@ data PrimType
   | Integer Word32
   | FloatType FloatType
   | X86mmx
+  | Token
   | Metadata
     deriving (Data, Eq, Generic, Ord, Show, Lift)
 

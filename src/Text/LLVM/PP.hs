@@ -456,6 +456,7 @@ ppPrimType Void           = "void"
 ppPrimType (Integer i)    = char 'i' <> integer (toInteger i)
 ppPrimType (FloatType ft) = ppFloatType ft
 ppPrimType X86mmx         = "x86mmx"
+ppPrimType Token          = "token"
 ppPrimType Metadata       = "metadata"
 
 ppFloatType :: Fmt FloatType
