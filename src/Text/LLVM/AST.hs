@@ -960,6 +960,9 @@ brTargets (BasicBlock _ stmts) =
     Jump t             -> [t]
     Switch _ l ls      -> l : map snd ls
     IndirectBr _ ls    -> ls
+    CatchRet _ bb      -> [bb]
+    CatchSwitch _ hs d -> hs ++ maybe [] (:[]) d
+    CleanupRet _ d     -> maybe [] (:[]) d
     _                  -> []
 
 -- Attributes ------------------------------------------------------------------
@@ -1496,6 +1499,34 @@ data Instr' lab
            returns its argument.
          * Middle of basic block. -}
 
+  | CleanupPad (Typed (Value' lab)) [Typed (Value' lab)]
+    {- ^ * Windows SEH: begins a cleanup handler.
+         * Arguments: parent exception pad token, list of args.
+         * Middle of basic block.
+         * Returns a token. -}
+
+  | CatchPad (Typed (Value' lab)) [Typed (Value' lab)]
+    {- ^ * Windows SEH: begins a catch handler.
+         * Arguments: parent catchswitch token, list of args.
+         * Middle of basic block.
+         * Returns a token. -}
+
+  | CleanupRet (Typed (Value' lab)) (Maybe lab)
+    {- ^ * Windows SEH: return from a cleanup handler.
+         * Arguments: cleanuppad token, optional unwind destination.
+         * Ends basic block. -}
+
+  | CatchRet (Typed (Value' lab)) lab
+    {- ^ * Windows SEH: return from a catch handler.
+         * Arguments: catchpad token, successor basic block.
+         * Ends basic block. -}
+
+  | CatchSwitch (Typed (Value' lab)) [lab] (Maybe lab)
+    {- ^ * Windows SEH: dispatches to catch handlers.
+         * Arguments: parent pad token, list of handler basic blocks,
+           optional default unwind destination.
+         * Ends basic block. -}
+
     deriving (Data, Eq, Functor, Generic, Ord, Show)
 
 type Instr = Instr' BlockLabel
@@ -1520,7 +1551,10 @@ isTerminator instr = case instr of
   Invoke{}     -> True
   IndirectBr{} -> True
   Switch{}     -> True
-  Resume{}     -> True
+  Resume{}      -> True
+  CleanupRet{} -> True
+  CatchRet{}   -> True
+  CatchSwitch{} -> True
   _            -> False
 
 isComment :: Instr' lab -> Bool
