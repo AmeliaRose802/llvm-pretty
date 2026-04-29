@@ -462,6 +462,7 @@ ppPrimType Void           = "void"
 ppPrimType (Integer i)    = char 'i' <> integer (toInteger i)
 ppPrimType (FloatType ft) = ppFloatType ft
 ppPrimType X86mmx         = "x86mmx"
+ppPrimType Token          = "token"
 ppPrimType Metadata       = "metadata"
 
 ppFloatType :: Fmt FloatType
@@ -890,6 +891,22 @@ ppInstr instr = case instr of
                         $$ nest 2 (ppClauses c cs)
   Resume tv           -> "resume" <+> ppTyped ppValue tv
   Freeze tv           -> "freeze" <+> ppTyped ppValue tv
+
+  CleanupPad parent args ->
+    "cleanuppad" <+> "within" <+> ppTyped ppValue parent
+                 <+> char '[' <> commas (map (ppTyped ppValue) args) <> char ']'
+  CatchPad parent args ->
+    "catchpad" <+> "within" <+> ppTyped ppValue parent
+               <+> char '[' <> commas (map (ppTyped ppValue) args) <> char ']'
+  CleanupRet pad unwind ->
+    "cleanupret" <+> "from" <+> ppTyped ppValue pad
+                 <+> maybe "unwind to caller" (\l -> "unwind" <+> ppLabel l) unwind
+  CatchRet pad dest ->
+    "catchret" <+> "from" <+> ppTyped ppValue pad <+> "to" <+> ppLabel dest
+  CatchSwitch parent handlers defUnwind ->
+    "catchswitch" <+> "within" <+> ppTyped ppValue parent
+                  <+> char '[' <> commas (map ppLabel handlers) <> char ']'
+                  <+> maybe "unwind to caller" (\l -> "unwind" <+> ppLabel l) defUnwind
 
 ppLoad :: Type -> Typed (Value' BlockLabel) -> Maybe AtomicOrdering -> Fmt (Maybe Align)
 ppLoad ty ptr mo ma =

@@ -122,6 +122,23 @@ instance HasLabel Instr' where
   relabel f (Resume tv)           = Resume <$> traverse (relabel f) tv
   relabel f (Freeze tv)           = Freeze <$> traverse (relabel f) tv
 
+  relabel f (CleanupPad p as)     = CleanupPad
+                                <$> traverse (relabel f) p
+                                <*> traverse (traverse (relabel f)) as
+  relabel f (CatchPad p as)       = CatchPad
+                                <$> traverse (relabel f) p
+                                <*> traverse (traverse (relabel f)) as
+  relabel f (CleanupRet p d)      = CleanupRet
+                                <$> traverse (relabel f) p
+                                <*> traverse (f Nothing) d
+  relabel f (CatchRet p d)        = CatchRet
+                                <$> traverse (relabel f) p
+                                <*> f Nothing d
+  relabel f (CatchSwitch p hs d)  = CatchSwitch
+                                <$> traverse (relabel f) p
+                                <*> traverse (f Nothing) hs
+                                <*> traverse (f Nothing) d
+
 instance HasLabel Stmt'                       where relabel = $(generateRelabel 'relabel ''Stmt')
 instance HasLabel Clause'                     where relabel = $(generateRelabel 'relabel ''Clause')
 instance HasLabel Value'                      where relabel = $(generateRelabel 'relabel ''Value')
