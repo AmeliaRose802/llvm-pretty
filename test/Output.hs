@@ -425,6 +425,103 @@ tests = Tasty.testGroup "LLVM pretty-printing output tests"
       (ppToText $ ppLLVM37 ppValue (ValFP128_PPC (FP128_PPC_DoubleDouble 0.0 0.0)))
       "0xM00000000000000000000000000000000"
 
+  ----------------------------------------------------------------------
+  -- Windows SEH funclet pretty-printing.  These spot-check the
+  -- specific textual forms required by the LLVM IR verifier:
+  --   * 'within none' for a ConstantTokenNone funclet parent (either
+  --     encoded as ValZeroInit or as ValNull on the Token type);
+  --   * 'within <ssa-value>' (no type prefix) for a token SSA parent;
+  --   * 'label %bb' for the BlockLabel operands of catchret /
+  --     catchswitch handlers / catchswitch+cleanupret unwind dests;
+  --   * the 'unwind to caller' vs 'unwind label %bb' alternatives;
+  --   * the 'personality <type> <value>' clause on a Define.
+  -- Comprehensive round-trip coverage of these forms via real bitcode
+  -- lives in llvm-pretty-bc-parser's disasm-test (seh-funclets.ll).
+
+  , let ppWide = T.pack . PP.renderStyle (PP.Style PP.PageMode 200 1.0)
+        tokTy = PrimType Token
+        none0 = Typed tokTy ValZeroInit
+        noneN = Typed tokTy ValNull
+        tok   = Typed tokTy (ValIdent (Ident "cs"))
+        bb    = Named (Ident "handler") :: BlockLabel
+        bbUnw = Named (Ident "unw")     :: BlockLabel
+        bb2   = Named (Ident "h2")      :: BlockLabel
+        argi  = Typed (PrimType (Integer 32)) (ValInteger 0)
+        seh i = ppWide $ ppLLVM 19 $ ppInstr i
+    in Tasty.testGroup "SEH funclet pretty-printing"
+       [ testCase "cleanuppad within none (ValZeroInit)" $
+         assertEqLines
+           (seh (CleanupPad none0 []))
+           "cleanuppad within none []"
+
+       , testCase "cleanuppad within none (ValNull)" $
+         assertEqLines
+           (seh (CleanupPad noneN []))
+           "cleanuppad within none []"
+
+       , testCase "catchpad within <ssa-token>" $
+         assertEqLines
+           (seh (CatchPad tok [argi]))
+           "catchpad within %cs [i32 0]"
+
+       , testCase "catchret to label" $
+         assertEqLines
+           (seh (CatchRet tok bb))
+           "catchret from %cs to label %handler"
+
+       , testCase "cleanupret unwind to caller" $
+         assertEqLines
+           (seh (CleanupRet tok Nothing))
+           "cleanupret from %cs unwind to caller"
+
+       , testCase "cleanupret unwind label" $
+         assertEqLines
+           (seh (CleanupRet tok (Just bbUnw)))
+           "cleanupret from %cs unwind label %unw"
+
+       , testCase "catchswitch within none unwind to caller" $
+         assertEqLines
+           (seh (CatchSwitch none0 [bb] Nothing))
+           "catchswitch within none [label %handler] unwind to caller"
+
+       , testCase "catchswitch within token, multiple handlers, explicit unwind" $
+         assertEqLines
+           (seh (CatchSwitch tok [bb, bb2] (Just bbUnw)))
+           "catchswitch within %cs [label %handler, label %h2] unwind label %unw"
+       ]
+
+  , let ppWide = T.pack . PP.renderStyle (PP.Style PP.PageMode 200 1.0)
+        -- A minimal Define with no body; we only render the signature
+        -- via ppDefineSig.
+        baseDef = Define
+          { defLinkage     = Nothing
+          , defVisibility  = Nothing
+          , defRetType     = PrimType Void
+          , defName        = Symbol "f"
+          , defArgs        = []
+          , defVarArgs     = False
+          , defAttrs       = []
+          , defSection     = Nothing
+          , defGC          = Nothing
+          , defBody        = []
+          , defMetadata    = mempty
+          , defComdat      = Nothing
+          , defPersonality = Nothing
+          }
+        persFn = Typed PtrOpaque (ValSymbol (Symbol "__gxx_personality_v0"))
+        sig d  = ppWide (ppLLVM 19 (ppDefineSig d))
+    in Tasty.testGroup "Define personality clause"
+       [ testCase "no personality omits the clause" $
+         do let out = sig baseDef
+            assertBool ("unexpected 'personality' in: " ++ T.unpack out)
+                       (not ("personality" `T.isInfixOf` out))
+
+       , testCase "Just personality emits the clause after gc/section" $
+         assertEqLines
+           (sig (baseDef { defPersonality = Just persFn }))
+           "define void @f() personality ptr @__gxx_personality_v0"
+       ]
+
   ]
 
 ----------------------------------------------------------------------
