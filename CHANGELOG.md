@@ -2,6 +2,19 @@
 
 ## next (MAJOR)
 
+* Added support for Windows SEH funclet instructions:
+  * `CatchSwitch`, `CatchPad`, `CleanupPad`, `CatchRet`, `CleanupRet` (in
+    `Instr'`), and the `ConstantTokenNone` value.
+  * The `Token` case in `PrimType` for the LLVM `token` primitive type.
+  * `Define` now has an additional `defPersonality :: Maybe (Typed (Value'
+    BlockLabel))` field, used to print the `personality` clause on a function
+    definition.  This is required by the IR verifier whenever the body of a
+    function contains a `landingpad` instruction or any of the SEH funclet
+    instructions listed above.
+  * Pretty-printing of SEH funclet operands uses the LLVM textual syntax
+    `within none` / `within %tok` and `label %bb` for funclet parent tokens
+    and label destinations, respectively.
+
 * Support LLVM 22:
   * `DICompileUnit'` now has an additional `dicuSourceLanguageVersion :: Word64`
     field.

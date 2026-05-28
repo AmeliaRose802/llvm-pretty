@@ -882,6 +882,12 @@ data Define = Define
   , defBody       :: [BasicBlock]
   , defMetadata   :: FnMdAttachments
   , defComdat     :: Maybe String
+  , defPersonality :: Maybe (Typed (Value' BlockLabel))
+    -- ^ The function's exception personality routine, if any
+    -- (encoded as @personality \<type\> \<value\>@ in textual LLVM IR).
+    -- Required by the IR verifier whenever the body contains
+    -- @landingpad@ or Windows SEH funclet instructions
+    -- (@catchswitch@\/@catchpad@\/@cleanuppad@\/@catchret@\/@cleanupret@).
   } deriving (Data, Eq, Generic, Ord, Show)
 
 defFunType :: Define -> Type

@@ -281,6 +281,7 @@ define attrs rty fun sig k = do
     , defBody       = body
     , defMetadata   = Map.empty
     , defComdat     = Nothing
+    , defPersonality = Nothing
     }
 
 -- | A combination of define and @freshSymbol@.
@@ -310,6 +311,7 @@ define' attrs rty sym sig va k = do
     , defBody       = snd (runBB (k (map (fmap toValue) args)))
     , defMetadata   = Map.empty
     , defComdat     = Nothing
+    , defPersonality = Nothing
     }
 
 -- Basic Block Monad -----------------------------------------------------------

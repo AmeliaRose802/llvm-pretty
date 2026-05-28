@@ -572,6 +572,8 @@ ppDefineSig d = "define"
                 <+> hsep (ppFunAttr <$> defAttrs d)
                 <+> ppMaybe (\s  -> "section" <+> doubleQuotes (text s)) (defSection d)
                 <+> ppMaybe (\gc -> "gc" <+> ppGC gc) (defGC d)
+                <+> ppMaybe (\p  -> "personality" <+> ppTyped ppValue p)
+                            (defPersonality d)
                 <+> ppMds (defMetadata d)
   where
   ppMds mdm =
@@ -893,20 +895,22 @@ ppInstr instr = case instr of
   Freeze tv           -> "freeze" <+> ppTyped ppValue tv
 
   CleanupPad parent args ->
-    "cleanuppad" <+> "within" <+> ppTyped ppValue parent
+    "cleanuppad" <+> "within" <+> ppFunclet parent
                  <+> char '[' <> commas (map (ppTyped ppValue) args) <> char ']'
   CatchPad parent args ->
-    "catchpad" <+> "within" <+> ppTyped ppValue parent
+    "catchpad" <+> "within" <+> ppFunclet parent
                <+> char '[' <> commas (map (ppTyped ppValue) args) <> char ']'
   CleanupRet pad unwind ->
-    "cleanupret" <+> "from" <+> ppTyped ppValue pad
-                 <+> maybe "unwind to caller" (\l -> "unwind" <+> ppLabel l) unwind
+    "cleanupret" <+> "from" <+> ppFunclet pad
+                 <+> maybe "unwind to caller"
+                           (\l -> "unwind" <+> ppTypedLabel l) unwind
   CatchRet pad dest ->
-    "catchret" <+> "from" <+> ppTyped ppValue pad <+> "to" <+> ppLabel dest
+    "catchret" <+> "from" <+> ppFunclet pad <+> "to" <+> ppTypedLabel dest
   CatchSwitch parent handlers defUnwind ->
-    "catchswitch" <+> "within" <+> ppTyped ppValue parent
-                  <+> char '[' <> commas (map ppLabel handlers) <> char ']'
-                  <+> maybe "unwind to caller" (\l -> "unwind" <+> ppLabel l) defUnwind
+    "catchswitch" <+> "within" <+> ppFunclet parent
+                  <+> char '[' <> commas (map ppTypedLabel handlers) <> char ']'
+                  <+> maybe "unwind to caller"
+                            (\l -> "unwind" <+> ppTypedLabel l) defUnwind
 
 ppLoad :: Type -> Typed (Value' BlockLabel) -> Maybe AtomicOrdering -> Fmt (Maybe Align)
 ppLoad ty ptr mo ma =
@@ -956,6 +960,17 @@ ppClause c = case c of
 
 ppTypedLabel :: Fmt BlockLabel
 ppTypedLabel i = ppType (PrimType Label) <+> ppLabel i
+
+-- | Pretty-print the parent token operand of an SEH funclet instruction
+-- (e.g.\ the @within@ clause of @catchpad@/@cleanuppad@/@catchswitch@ or
+-- the @from@ clause of @catchret@/@cleanupret@).  Unlike @ppTyped ppValue@,
+-- this emits no type prefix (LLVM's textual syntax for these operands is
+-- value-only), and it renders the @ConstantTokenNone@ literal as @none@
+-- rather than @zeroinitializer@ or @null@.
+ppFunclet :: Fmt (Typed (Value' BlockLabel))
+ppFunclet (Typed (PrimType Token) ValZeroInit) = "none"
+ppFunclet (Typed (PrimType Token) ValNull)     = "none"
+ppFunclet (Typed _                v)           = ppValue v
 
 ppSwitchEntry :: Type -> Fmt (Integer,BlockLabel)
 ppSwitchEntry ty (i,l) = ppType ty <+> integer i <> comma <+> ppTypedLabel l
