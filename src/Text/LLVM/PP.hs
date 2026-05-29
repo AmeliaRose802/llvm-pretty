@@ -963,12 +963,9 @@ ppClause c = case c of
 ppTypedLabel :: Fmt BlockLabel
 ppTypedLabel i = ppType (PrimType Label) <+> ppLabel i
 
--- | Pretty-print the parent token operand of an SEH funclet instruction
--- (e.g.\ the @within@ clause of @catchpad@/@cleanuppad@/@catchswitch@ or
--- the @from@ clause of @catchret@/@cleanupret@).  Unlike @ppTyped ppValue@,
--- this emits no type prefix (LLVM's textual syntax for these operands is
--- value-only), and it renders the @ConstantTokenNone@ literal as @none@
--- rather than @zeroinitializer@ or @null@.
+-- | Pretty-print the parent token operand of an SEH funclet instruction.
+-- Unlike @ppTyped ppValue@, this emits no type prefix and renders
+-- 'ConstantTokenNone' as @none@.
 ppFunclet :: Fmt (Typed (Value' BlockLabel))
 ppFunclet (Typed (PrimType Token) ValZeroInit) = "none"
 ppFunclet (Typed (PrimType Token) ValNull)     = "none"
@@ -1062,10 +1059,8 @@ ppInvoke ty f args to uw bs = body
      <+> "to" <+> ppType (PrimType Label) <+> ppLabel to
      <+> "unwind" <+> ppType (PrimType Label) <+> ppLabel uw
 
--- | Pretty-print a list of operand bundles as @[ "tag"(args), "tag2"(args) ]@,
--- or 'empty' if the list is empty. Each bundle's args list may itself be empty
--- (e.g. @[ "deopt"() ]@). The verifier requires bundle tags to be non-empty,
--- but we don't enforce that here.
+-- | Pretty-print a list of operand bundles as @[ "tag"(args), ... ]@,
+-- or 'empty' if the list is empty.
 ppOperandBundles :: Fmt [OperandBundle]
 ppOperandBundles []  = empty
 ppOperandBundles bs  =

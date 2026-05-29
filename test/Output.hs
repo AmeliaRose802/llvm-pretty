@@ -429,18 +429,9 @@ tests = Tasty.testGroup "LLVM pretty-printing output tests"
       (ppToText $ ppLLVM37 ppValue (ValFP128_PPC (FP128_PPC_DoubleDouble 0.0 0.0)))
       "0xM00000000000000000000000000000000"
 
-  ----------------------------------------------------------------------
-  -- Windows SEH funclet pretty-printing.  These spot-check the
-  -- specific textual forms required by the LLVM IR verifier:
-  --   * 'within none' for a ConstantTokenNone funclet parent (either
-  --     encoded as ValZeroInit or as ValNull on the Token type);
-  --   * 'within <ssa-value>' (no type prefix) for a token SSA parent;
-  --   * 'label %bb' for the BlockLabel operands of catchret /
-  --     catchswitch handlers / catchswitch+cleanupret unwind dests;
-  --   * the 'unwind to caller' vs 'unwind label %bb' alternatives;
-  --   * the 'personality <type> <value>' clause on a Define.
-  -- Comprehensive round-trip coverage of these forms via real bitcode
-  -- lives in llvm-pretty-bc-parser's disasm-test (seh-funclets.ll).
+  -- Windows SEH funclet pretty-printing spot-checks.  Full round-trip
+  -- coverage through bitcode lives in llvm-pretty-bc-parser's disasm-test
+  -- (seh-funclets.ll).
 
   , let ppWide = T.pack . PP.renderStyle (PP.Style PP.PageMode 200 1.0)
         tokTy = PrimType Token
@@ -494,18 +485,9 @@ tests = Tasty.testGroup "LLVM pretty-printing output tests"
            "catchswitch within %cs [label %handler, label %h2] unwind label %unw"
        ]
 
-  ----------------------------------------------------------------------
-  -- Operand bundle pretty-printing.  These spot-check the
-  -- textual form of the new OperandBundle' field on
-  -- Call / Invoke / CallBr instructions:
-  --   * empty bundle list is omitted (no '[]' trailing the call);
-  --   * '[ "tag"(typed args) ]' for one bundle;
-  --   * comma-separated bundles for multiple;
-  --   * a 'funclet' bundle carrying a token SSA value (the form
-  --     that MSVC C++ EH emits and that the IR verifier requires
-  --     on every inner call inside a SEH funclet).
-  -- Real round-trip coverage through bitcode lives in
-  -- llvm-pretty-bc-parser's disasm-test (windows-seh-funclets.bc).
+  -- Operand bundle pretty-printing spot-checks.  Full round-trip
+  -- coverage through bitcode lives in llvm-pretty-bc-parser's disasm-test
+  -- (windows-seh-funclets.bc).
 
   , let ppWide = T.pack . PP.renderStyle (PP.Style PP.PageMode 200 1.0)
         tokTy = PrimType Token

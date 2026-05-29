@@ -543,8 +543,6 @@ data PrimType
   | FloatType FloatType
   | X86mmx
   | Token
-    -- ^ LLVM @token@ type. Used by coroutine and Windows SEH intrinsics
-    -- (e.g.\ the value produced by @catchpad@ / @cleanuppad@).
   | Metadata
     deriving (Data, Eq, Generic, Ord, Show, Lift)
 
@@ -884,11 +882,6 @@ data Define = Define
   , defMetadata   :: FnMdAttachments
   , defComdat     :: Maybe String
   , defPersonality :: Maybe (Typed (Value' BlockLabel))
-    -- ^ The function's exception personality routine, if any
-    -- (encoded as @personality \<type\> \<value\>@ in textual LLVM IR).
-    -- Required by the IR verifier whenever the body contains
-    -- @landingpad@ or Windows SEH funclet instructions
-    -- (@catchswitch@\/@catchpad@\/@cleanuppad@\/@catchret@\/@cleanupret@).
   } deriving (Data, Eq, Generic, Ord, Show)
 
 defFunType :: Define -> Type
@@ -1265,8 +1258,7 @@ data Instr' lab
             The boolean is tail-call hint (XXX: needs to be updated)
          * Middle of basic block.
          * The result is as indicated by the provided type.
-         * The final list is the operand bundles attached to the call
-           (e.g. @[ "funclet"(token %x) ]@). Empty for most calls. -}
+         * The final list is the operand bundles attached to the call. -}
 
   | CallBr Type (Value' lab) [Typed (Value' lab)] lab [lab] [OperandBundle' lab]
     {- ^ * Call a function in asm-goto style:
@@ -1275,7 +1267,7 @@ data Instr' lab
              arguments;
              default basic block destination;
              other basic block destinations;
-             operand bundles attached to the call (usually empty).
+             operand bundles attached to the call.
          * Middle of basic block.
          * The result is as indicated by the provided type.
          * Introduced in LLVM 9. -}
@@ -1443,8 +1435,7 @@ data Instr' lab
            3. arguments to the function
            4. successful return target label
            5. on-exception unwind target label
-           6. operand bundles attached to the invoke (e.g.
-              @[ "funclet"(token %x) ]@; usually empty).
+           6. operand bundles attached to the invoke.
          * Ends basic block. -}
 
   | Comment String
@@ -1538,14 +1529,8 @@ data Clause' lab
 
 type Clause = Clause' BlockLabel
 
--- | An operand bundle attached to a 'Call', 'Invoke', or 'CallBr' instruction.
---
--- Operand bundles carry side-channel information that the optimizer must
--- preserve across the call: e.g. @[ "funclet"(token %x) ]@ pins the call
--- into a particular funclet (required by the IR verifier for inner calls
--- inside Windows SEH funclets), @[ "deopt"(...) ]@ carries deoptimization
--- state for JIT runtimes, etc. The parser/PP treat the tag as an opaque
--- string; semantics are determined by whoever consumes the bundle.
+-- | An operand bundle attached to a 'Call', 'Invoke', or 'CallBr'
+-- instruction (e.g. @[ "funclet"(token %x) ]@ or @[ "deopt"(...) ]@).
 data OperandBundle' lab = OperandBundle
   { obTag  :: String
   , obArgs :: [Typed (Value' lab)]
