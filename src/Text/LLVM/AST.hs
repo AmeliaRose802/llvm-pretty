@@ -121,6 +121,7 @@ module Text.LLVM.AST
   , Align
   , Instr'(..), Instr
   , Clause'(..), Clause
+  , OperandBundle'(..), OperandBundle
   , isTerminator
   , isComment
   , isPhi
@@ -953,9 +954,9 @@ type BasicBlock = BasicBlock' BlockLabel
 brTargets :: BasicBlock' lab -> [lab]
 brTargets (BasicBlock _ stmts) =
   case stmtInstr (last stmts) of
-    Br _ t1 t2         -> [t1, t2]
-    Invoke _ _ _ to uw -> [to, uw]
-    Jump t             -> [t]
+    Br _ t1 t2           -> [t1, t2]
+    Invoke _ _ _ to uw _ -> [to, uw]
+    Jump t               -> [t]
     Switch _ l ls      -> l : map snd ls
     IndirectBr _ ls    -> ls
     CatchRet _ bb      -> [bb]
@@ -1259,19 +1260,22 @@ data Instr' lab
          * Middle of basic block.
          * The result matches the 3rd parameter. -}
 
-  | Call Bool Type (Value' lab) [Typed (Value' lab)]
+  | Call Bool Type (Value' lab) [Typed (Value' lab)] [OperandBundle' lab]
     {- ^ * Call a function.
             The boolean is tail-call hint (XXX: needs to be updated)
          * Middle of basic block.
-         * The result is as indicated by the provided type. -}
+         * The result is as indicated by the provided type.
+         * The final list is the operand bundles attached to the call
+           (e.g. @[ "funclet"(token %x) ]@). Empty for most calls. -}
 
-  | CallBr Type (Value' lab) [Typed (Value' lab)] lab [lab]
+  | CallBr Type (Value' lab) [Typed (Value' lab)] lab [lab] [OperandBundle' lab]
     {- ^ * Call a function in asm-goto style:
              return type;
              function operand;
              arguments;
              default basic block destination;
-             other basic block destinations.
+             other basic block destinations;
+             operand bundles attached to the call (usually empty).
          * Middle of basic block.
          * The result is as indicated by the provided type.
          * Introduced in LLVM 9. -}
@@ -1429,7 +1433,7 @@ data Instr' lab
            block, otherwise jump to the second.
          * Ends basic block. -}
 
-  | Invoke Type (Value' lab) [Typed (Value' lab)] lab lab
+  | Invoke Type (Value' lab) [Typed (Value' lab)] lab lab [OperandBundle' lab]
     {- ^ * Calls the specified target function, then branches to the success
            label.  If an exception occurs during the call, the exception unwind
            handling branches to the second label.
@@ -1439,6 +1443,8 @@ data Instr' lab
            3. arguments to the function
            4. successful return target label
            5. on-exception unwind target label
+           6. operand bundles attached to the invoke (e.g.
+              @[ "funclet"(token %x) ]@; usually empty).
          * Ends basic block. -}
 
   | Comment String
@@ -1531,6 +1537,21 @@ data Clause' lab
     deriving (Data, Eq, Functor, Generic, Generic1, Ord, Show)
 
 type Clause = Clause' BlockLabel
+
+-- | An operand bundle attached to a 'Call', 'Invoke', or 'CallBr' instruction.
+--
+-- Operand bundles carry side-channel information that the optimizer must
+-- preserve across the call: e.g. @[ "funclet"(token %x) ]@ pins the call
+-- into a particular funclet (required by the IR verifier for inner calls
+-- inside Windows SEH funclets), @[ "deopt"(...) ]@ carries deoptimization
+-- state for JIT runtimes, etc. The parser/PP treat the tag as an opaque
+-- string; semantics are determined by whoever consumes the bundle.
+data OperandBundle' lab = OperandBundle
+  { obTag  :: String
+  , obArgs :: [Typed (Value' lab)]
+  } deriving (Data, Eq, Functor, Generic, Generic1, Ord, Show)
+
+type OperandBundle = OperandBundle' BlockLabel
 
 
 isTerminator :: Instr' lab -> Bool

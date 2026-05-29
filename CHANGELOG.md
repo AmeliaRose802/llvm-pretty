@@ -2,6 +2,24 @@
 
 ## next (MAJOR)
 
+* Added support for **operand bundles** on call-style instructions:
+  * New `OperandBundle' lab` AST type carrying a tag (string) and a list of
+    typed arguments.  Re-exported as `OperandBundle = OperandBundle' BlockLabel`.
+  * The `Call`, `Invoke`, and `CallBr` constructors of `Instr'` now have an
+    additional trailing `[OperandBundle' lab]` field.  This is a breaking
+    change: existing pattern matches and constructor applications must be
+    updated (pass `[]` to preserve the previous behaviour).
+  * Pretty-printing emits the LLVM textual syntax
+    `[ "tag"(typed args), ... ]` between the call argument list and any
+    trailing clauses (e.g. the `to`/`unwind` labels of an `invoke`).  An
+    empty bundle list emits nothing.
+  * The `"funclet"` bundle is the form MSVC C++ EH emits on every inner call
+    inside a SEH funclet and that the IR verifier requires; see the new
+    spot-check tests in `test/Output.hs` under "Operand bundle pretty-printing".
+  * Smart constructors in `Text.LLVM` (`call`, `call_`, `invoke`) pass `[]` to
+    preserve the previous behaviour; surface their `OperandBundle` argument
+    in a future minor revision if needed.
+
 * Added support for Windows SEH funclet instructions:
   * `CatchSwitch`, `CatchPad`, `CleanupPad`, `CatchRet`, `CleanupRet` (in
     `Instr'`), and the `ConstantTokenNone` value.

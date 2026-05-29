@@ -490,6 +490,56 @@ tests = Tasty.testGroup "LLVM pretty-printing output tests"
            "catchswitch within %cs [label %handler, label %h2] unwind label %unw"
        ]
 
+  ----------------------------------------------------------------------
+  -- Operand bundle pretty-printing.  These spot-check the
+  -- textual form of the new OperandBundle' field on
+  -- Call / Invoke / CallBr instructions:
+  --   * empty bundle list is omitted (no '[]' trailing the call);
+  --   * '[ "tag"(typed args) ]' for one bundle;
+  --   * comma-separated bundles for multiple;
+  --   * a 'funclet' bundle carrying a token SSA value (the form
+  --     that MSVC C++ EH emits and that the IR verifier requires
+  --     on every inner call inside a SEH funclet).
+  -- Real round-trip coverage through bitcode lives in
+  -- llvm-pretty-bc-parser's disasm-test (windows-seh-funclets.bc).
+
+  , let ppWide = T.pack . PP.renderStyle (PP.Style PP.PageMode 200 1.0)
+        tokTy = PrimType Token
+        tok   = Typed tokTy (ValIdent (Ident "cs"))
+        bb    = Named (Ident "ok")  :: BlockLabel
+        bbUnw = Named (Ident "unw") :: BlockLabel
+        fnTy  = FunTy (PrimType Void) [] False
+        fnPtr = ValSymbol (Symbol "callee")
+        funBd = OperandBundle "funclet" [tok]
+        deopt = OperandBundle "deopt"   []
+        bundle i = ppWide $ ppLLVM 19 $ ppInstr i
+    in Tasty.testGroup "Operand bundle pretty-printing"
+       [ testCase "Call with empty bundle list omits the brackets" $
+         assertEqLines
+           (bundle (Call False fnTy fnPtr [] []))
+           "call void @callee()"
+
+       , testCase "Call with funclet bundle" $
+         assertEqLines
+           (bundle (Call False fnTy fnPtr [] [funBd]))
+           "call void @callee() [\"funclet\"(token %cs)]"
+
+       , testCase "Call with multiple bundles" $
+         assertEqLines
+           (bundle (Call False fnTy fnPtr [] [funBd, deopt]))
+           "call void @callee() [\"funclet\"(token %cs), \"deopt\"()]"
+
+       , testCase "Invoke with funclet bundle (bundle precedes 'to'/'unwind')" $
+         assertEqLines
+           (bundle (Invoke (PrimType Void) fnPtr [] bb bbUnw [funBd]))
+           "invoke void @callee() [\"funclet\"(token %cs)] to label %ok unwind label %unw"
+
+       , testCase "Invoke with empty bundle list omits the brackets" $
+         assertEqLines
+           (bundle (Invoke (PrimType Void) fnPtr [] bb bbUnw []))
+           "invoke void @callee() to label %ok unwind label %unw"
+       ]
+
   , let ppWide = T.pack . PP.renderStyle (PP.Style PP.PageMode 200 1.0)
         -- A minimal Define with no body; we only render the signature
         -- via ppDefineSig.

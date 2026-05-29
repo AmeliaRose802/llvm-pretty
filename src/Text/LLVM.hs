@@ -732,18 +732,18 @@ getelementptr ty ptr ixs = observe ty (GEP [] ty (toValue `fmap` ptr) ixs)
 -- | Emit a call instruction, and generate a new variable for its result.
 call :: IsValue a => Typed a -> [Typed Value] -> BB (Typed Value)
 call sym vs = case typedType sym of
-  PtrTo ty@(FunTy rty _ _) -> observe rty (Call False ty (toValue sym) vs)
+  PtrTo ty@(FunTy rty _ _) -> observe rty (Call False ty (toValue sym) vs [])
   _                        -> error "invalid function type given to call"
 
 -- | Emit a call instruction, but don't generate a new variable for its result.
 call_ :: IsValue a => Typed a -> [Typed Value] -> BB ()
-call_ sym vs = effect (Call False (typedType sym) (toValue sym) vs)
+call_ sym vs = effect (Call False (typedType sym) (toValue sym) vs [])
 
 -- | Emit an invoke instruction, and generate a new variable for its result.
 invoke :: IsValue a =>
           Type -> a -> [Typed Value] -> Ident -> Ident -> BB (Typed Value)
 invoke rty sym vs to uw = observe rty
-                        $ Invoke rty (toValue sym) vs (Named to) (Named uw)
+                        $ Invoke rty (toValue sym) vs (Named to) (Named uw) []
 
 -- | Emit a call instruction, but don't generate a new variable for its result.
 switch :: IsValue a => Typed a -> Ident -> [(Integer, Ident)] -> BB ()
